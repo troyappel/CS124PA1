@@ -1,29 +1,36 @@
 #include <iostream>
 #include <unordered_map>
 
-int main() {
-    std::cout << "Hello World!";
-}
+
 
 
 struct heaptype {
     double weight;
-    void* ptr;
+    size_t el;
 };
 
-struct heap{
+struct heaptype* newHeaptype(double w, size_t el) 
+{ 
+    struct heaptype* h = (struct heaptype*)malloc(sizeof(struct heaptype)); 
+    h->weight = w; 
+    h->el = el; 
+    return h; 
+};
+
+struct Heap{
     heaptype* arr; // Array is one bigger; let first element start at one
     size_t max_size;
 
     size_t used_size;
 
-    std::unordered_map<void*, size_t> m;
+    std::unordered_map<size_t, size_t> m;
 
-    heap(size_t n) {
+    Heap(size_t n) {
         arr = (heaptype*) malloc(sizeof(heaptype) * (n+1));
         max_size = n;
+        used_size = 0;
     };
-    ~heap() {
+    ~Heap() {
         free(arr);
     };
 
@@ -34,7 +41,7 @@ struct heap{
     }
 
     heaptype peek() {
-
+        return arr[1];
     };
 
     void heapify() {
@@ -55,10 +62,48 @@ struct heap{
         }
     }
 
-    heaptype remove();
+    void insert(heaptype a) {
+        used_size ++;
+        size_t i = used_size;
+        arr[used_size] = a;
+        while(arr[i].weight > arr[i/2].weight) {
+            swap_els(&arr[i], &arr[i/2]);
+        } //Coalesce upwards
+    };
+
+    heaptype pop() {
+        heaptype min = arr[1];
+        arr[1] = arr[used_size];
+        heapify();
+        return min;
+    };
+
     heaptype remove_and_add(heaptype i);
     void add(heaptype i);
-    void alter(void* ptr, double weight) {
+
+
+    void alter(heaptype a) {
+    };
+
+    void remove() {
 
     };
+
+    bool empty() {
+        return used_size == 0;
+    }
 };
+
+int main() {
+    Heap p(100);
+    p.insert(heaptype{2, 1});
+    p.insert(heaptype{1, 2});
+    p.insert(heaptype{5, 3});
+    p.insert(heaptype{3, 4});
+    p.insert(heaptype{6, 5});
+
+    while(!p.empty()) {
+        printf("%i", p.pop().el);
+    }
+
+}
