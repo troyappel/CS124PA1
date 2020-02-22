@@ -18,7 +18,7 @@ struct UnionFind {
     };
 
     void makeset(size_t x) {
-        arr[x].next = arr[x];
+        arr[x].next = x;
     };
 
     size_t find(size_t x) {
