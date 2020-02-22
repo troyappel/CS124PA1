@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <random>
 #include <cstdlib>
+#include <math.h>
+#include <chrono>
 
 struct Node {
     size_t next;
@@ -95,34 +97,67 @@ struct UnionFind {
     };
 };
 
-void test_setunion() {
-    assert(true);
-}
-
 int comp_edge(Edge a, Edge b) {
     return a.weight < b.weight;
 }
 
+class GraphGen {
+    public:
+        static Graph genGraph(size_t n);
+        static double k_max(size_t n);
+};
+
+class step0Gen : public GraphGen {
+    public:
+        static Graph genGraph(size_t n) {
+            std::minstd_rand gen(std::random_device{}());
+            std::uniform_real_distribution<double> dist(0, 1);
+
+            double k = k_max(n);
+
+            Graph g;
+
+            for (int i = 0; i < n; i++) {
+                for (int j = i+1; j < n; j++) {
+                    double d =  dist(gen);
+                    if (d < k) {
+                        g.add_edge(i, j, dist(gen));
+                    }
+                }
+            }
+
+            return g;
+
+        }
+        static double k_max(size_t n) {
+            double ex = - 0.7 * log2((double)n);
+            return pow(2.0, ex);
+        };
+};
+
 
 int main(int argc, char **argv) {
-    test_setunion();
 
-    size_t n = atol(argv[1]);
+    auto start = std::chrono::high_resolution_clock::now();
 
-    double k = 1;
-    size_t needed = n*4;
+    assert(argc == 5);
+
+    size_t f = atol(argv[1]);
+
+    size_t n_points = atol(argv[2]);
+
+    size_t n_trials = atol(argv[3]);
+
+    size_t dim = atol(argv[4]);
+
+
 
     std::minstd_rand gen(std::random_device{}());
     std::uniform_real_distribution<double> dist(0, 1);
 
-    Graph g;
-    UnionFind u(n);
 
-    for (int i = 0; i < n; i++) {
-        for (int j = i+1; j < n; j++) {
-            g.add_edge(i, j, dist(gen));
-        }
-    }
+    Graph g = step0Gen::genGraph(n_points);
+    UnionFind u(n_points);
 
     std::vector<Edge> results;
 
@@ -131,7 +166,10 @@ int main(int argc, char **argv) {
     double sum = 0;
     double max_weight = 0;
 
-    for(int i = 0; i < g.edges.size(); i++) {
+    size_t found = 0;
+
+    //Kruskal's
+    for(int i = 0; i < g.edges.size() && found != n_points-1; i++) {
         int x = u.find(g.edges[i].src);
         int y = u.find(g.edges[i].dest);
 
@@ -140,10 +178,19 @@ int main(int argc, char **argv) {
             sum += g.edges[i].weight;
             max_weight = g.edges[i].weight;
             u.setunion(x,y);
+            found++;
+        }
+
+        if (i == g.edges.size() -1) {
+            printf("error: not enough terms\n");
         }
 
     }
 
-    printf("Sum: %lf, Min: %lf", sum, g.edges[0].weight);
+    auto stop = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop-start);
+
+    printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
+    printf("Time elapsed: %i\n", duration.count());
     
 }
