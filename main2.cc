@@ -1,11 +1,39 @@
 #include <iostream>
 #include <unordered_map>
 #include <assert.h>
+#include <vector>
+#include <algorithm>
 
 struct Node {
     size_t next;
     size_t key;
     size_t rank;
+};
+
+struct Edge {
+    size_t dest;
+    double weight; 
+};
+
+struct Graph {
+    size_t v, e;
+
+    std::vector<std::vector<Edge>> arr;
+
+    Graph(size_t v) {
+        arr.resize(v);
+        this-> v = v;
+    };
+
+    inline void add_edge(size_t u, size_t v, size_t w) {
+        this->arr[u].push_back({v, w});
+        this->arr[v].push_back({u, w});
+    };
+
+    bool is_edge(size_t u, size_t v) {
+        return std::find(arr[u].begin(), arr[u].end(), v) !=  arr[u].end();
+    };
+
 };
 
 struct UnionFind {
@@ -54,4 +82,5 @@ void test_setunion() {
 
 int main() {
     test_setunion();
+
 }
