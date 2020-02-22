@@ -99,8 +99,8 @@ void test_setunion() {
     assert(true);
 }
 
-int comp_edge(const void* a, const void* b) {
-    return ((Edge*) a)->weight > ((Edge*) b)->weight;
+int comp_edge(Edge a, Edge b) {
+    return a.weight < b.weight;
 }
 
 
@@ -128,20 +128,22 @@ int main(int argc, char **argv) {
 
     sort(g.edges.begin(), g.edges.end(), comp_edge);
 
+    double sum = 0;
+    double max_weight = 0;
+
     for(int i = 0; i < g.edges.size(); i++) {
         int x = u.find(g.edges[i].src);
         int y = u.find(g.edges[i].dest);
 
         if (x != y) {
-            results.push_back(g.edges[i]);
+            // results.push_back(g.edges[i]);
+            sum += g.edges[i].weight;
+            max_weight = g.edges[i].weight;
             u.setunion(x,y);
         }
 
     }
 
-    for (int i = 0; i < results.size(); i++) {
-        Edge e = g.edges[i];
-        printf("(%i,%i), %d\n", e.src, e.dest, e.weight);
-    }
+    printf("Sum: %lf, Min: %lf", sum, g.edges[0].weight);
     
 }
