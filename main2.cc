@@ -157,6 +157,54 @@ class step1Gen : public GraphGen {
         }
 };
 
+class step2Gen : public GraphGen {
+    public:
+        double* xs;
+        double* ys;
+        double* zs;
+        Graph genGraph(size_t n, size_t seed) {
+
+            std::minstd_rand gen(seed);
+            std::uniform_real_distribution<double> dist(0, 1);
+
+            xs = (double*) malloc(n*sizeof(double));
+            ys = (double*) malloc(n*sizeof(double));
+            zs = (double*) malloc(n*sizeof(double));
+
+            double k = k_max(n);
+
+            Graph g;
+
+            for (size_t i = 0; i < n; i++) {
+                xs[i] = dist(gen);
+                ys[i] = dist(gen);
+                zs[i] = dist(gen);
+            }
+            for (int i = 0; i < n; i++) {
+                for (int j = i+1; j < n; j++) {
+                    double ds =     (xs[i]-xs[j])*(xs[i]-xs[j]) 
+                                 +  (ys[i]-ys[j])*(ys[i]-ys[j])
+                                 +  (zs[i]-zs[j])*(zs[i]-zs[j]);
+                    if (ds < k) {
+                        g.add_edge(i, j, sqrt(ds));
+                    }
+                }
+            }
+
+            free(xs);
+            free(ys);
+
+            return g;
+        }
+
+        static double k_max(size_t n) {
+            // return 10;
+            if(n < 4192) return 10;
+            double ex = - 0.4 * log2((double)n);
+            return pow(2.0, ex);
+        }
+};
+
 
 std::vector<std::pair<double, double>> res;
 std::mutex mtx;
@@ -171,7 +219,11 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
     } else if (dim == 2) {
         step1Gen gen;
         g = gen.genGraph(n_points, t_num);
-    } else {
+    } else if (dim == 3) {
+        step2Gen gen;
+        g = gen.genGraph(n_points, t_num);
+    }
+    else {
         printf("Invalid number of dimensions\n");
         exit(1);
     }
