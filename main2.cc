@@ -110,6 +110,7 @@ class step0Gen : public GraphGen {
 
         }
         static double k_max(size_t n) {
+            if (n < 4192) return 1.0;
             double ex = - 0.7 * log2((double)n);
             return pow(2.0, ex);
         };
@@ -193,6 +194,7 @@ class step2Gen : public GraphGen {
 
             free(xs);
             free(ys);
+            free(zs);
 
             return g;
         }
@@ -200,7 +202,61 @@ class step2Gen : public GraphGen {
         static double k_max(size_t n) {
             // return 10;
             if(n < 4192) return 10;
-            double ex = - 0.4 * log2((double)n);
+            double ex = - 0.5 * log2((double)n);
+            return pow(2.0, ex);
+        }
+};
+
+class step3Gen : public GraphGen {
+    public:
+        double* xs;
+        double* ys;
+        double* zs;
+        double* ws;
+        Graph genGraph(size_t n, size_t seed) {
+
+            std::minstd_rand gen(seed);
+            std::uniform_real_distribution<double> dist(0, 1);
+
+            xs = (double*) malloc(n*sizeof(double));
+            ys = (double*) malloc(n*sizeof(double));
+            zs = (double*) malloc(n*sizeof(double));
+            ws = (double*) malloc(n*sizeof(double));
+
+            double k = k_max(n);
+
+            Graph g;
+
+            for (size_t i = 0; i < n; i++) {
+                xs[i] = dist(gen);
+                ys[i] = dist(gen);
+                zs[i] = dist(gen);
+                ws[i] = dist(gen);
+            }
+            for (int i = 0; i < n; i++) {
+                for (int j = i+1; j < n; j++) {
+                    double ds =     (xs[i]-xs[j])*(xs[i]-xs[j]) 
+                                 +  (ys[i]-ys[j])*(ys[i]-ys[j])
+                                 +  (zs[i]-zs[j])*(zs[i]-zs[j])
+                                 +  (ws[i]-ws[j])*(ws[i]-ws[j]);
+                    if (ds < k) {
+                        g.add_edge(i, j, sqrt(ds));
+                    }
+                }
+            }
+
+            free(xs);
+            free(ys);
+            free(zs);
+            free(ws);
+
+            return g;
+        }
+
+        static double k_max(size_t n) {
+            // return 10;
+            if(n < 4192) return 10;
+            double ex = - 0.3 * log2((double)n);
             return pow(2.0, ex);
         }
 };
@@ -221,6 +277,9 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
         g = gen.genGraph(n_points, t_num);
     } else if (dim == 3) {
         step2Gen gen;
+        g = gen.genGraph(n_points, t_num);
+    } else if (dim == 4) {
+        step3Gen gen;
         g = gen.genGraph(n_points, t_num);
     }
     else {
@@ -261,7 +320,7 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
         printf("error: not enough terms\n");
     }
 
-    printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
+    // printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
 
     {
         std::lock_guard<std::mutex> guard(mtx); 
@@ -287,6 +346,8 @@ int main(int argc, char **argv) {
     std::vector<std::thread> t_v;
 
     for(int i = 0; i < n_trials; i++) {
+        // Seed with thread number; otherwise seed randomly from system
+        size_t seed = n_trials > 1 ? i : std::random_device({})();
         t_v.push_back(std::thread(thread_func, n_points, i, dim));
     }
 
@@ -310,10 +371,12 @@ int main(int argc, char **argv) {
 
     sum /= n_trials;
 
-    printf("Average weight: %.17g\n", sum);
+    // printf("Average weight: %.17g\n", sum);
 
-    printf("Max: %.17g\n", max);
+    // printf("Max: %.17g\n", max);
 
-    printf("Time elapsed: %i\n", duration.count());
+    // printf("Time elapsed: %i\n", duration.count());
+
+    printf("%.17g %lu %lu %lu\n", sum, n_points, n_trials, dim);
     
 }
