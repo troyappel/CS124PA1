@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <math.h>
 #include <chrono>
+#include <mutex>
+#include <thread>
 
 struct Node {
     size_t next;
@@ -20,34 +22,10 @@ struct Edge {
     double weight; 
 };
 
-// struct Graph {
-//     size_t v, e;
-
-//     std::vector<std::vector<Edge>> arr;
-
-//     Graph(size_t v) {
-//         arr.resize(v);
-//         this-> v = v;
-//     };
-
-//     inline void add_edge(size_t u, size_t v, size_t w) {
-//         this->arr[u].push_back({v, w});
-//         this->arr[v].push_back({u, w});
-//     };
-
-//     bool is_edge(size_t u, size_t v) {
-//         return std::find(arr[u].begin(), arr[u].end(), v) !=  arr[u].end();
-//     };
-
-// };
 
 struct Graph {
     int V, E;
     std::vector<Edge> edges; 
-
-    Graph() {
-
-    }
     
     inline void add_edge(size_t u, size_t v, double w) {
         edges.push_back({u,v,w});
@@ -107,10 +85,12 @@ class GraphGen {
         static double k_max(size_t n);
 };
 
+
+// NOTE: WHICH GEN TO USE? mt19937_64 is good and high-precision but minstd_rand is twice as fast
 class step0Gen : public GraphGen {
     public:
-        static Graph genGraph(size_t n) {
-            std::minstd_rand gen(std::random_device{}());
+        static Graph genGraph(size_t n, size_t seed) {
+            std::mt19937_64 gen(seed);
             std::uniform_real_distribution<double> dist(0, 1);
 
             double k = k_max(n);
@@ -135,6 +115,46 @@ class step0Gen : public GraphGen {
         };
 };
 
+std::vector<std::pair<double, double>> res;
+std::mutex mtx;
+
+void thread_func(size_t n_points, size_t t_num) {
+    Graph g = step0Gen::genGraph(n_points, t_num);
+    UnionFind u(n_points);
+    
+    sort(g.edges.begin(), g.edges.end(), comp_edge);
+
+    double sum = 0;
+    double max_weight = 0;
+
+    size_t found = 0;
+
+    //Kruskal's Algorithm
+    for(int i = 0; i < g.edges.size() && found != n_points-1; i++) {
+        int x = u.find(g.edges[i].src);
+        int y = u.find(g.edges[i].dest);
+
+        if (x != y) {
+            sum += g.edges[i].weight;
+            max_weight = g.edges[i].weight;
+            u.setunion(x,y);
+            found++;
+        }
+
+        if (i == g.edges.size() -1) {
+            printf("error: not enough terms\n");
+        }
+
+    }
+
+    printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
+
+    {
+        std::lock_guard<std::mutex> guard(mtx); 
+        res.push_back(std::make_pair(sum, g.edges[0].weight));
+    }
+}
+
 
 int main(int argc, char **argv) {
 
@@ -150,47 +170,34 @@ int main(int argc, char **argv) {
 
     size_t dim = atol(argv[4]);
 
+    std::vector<std::thread> t_v;
 
+    for(int i = 0; i < n_trials; i++) {
+        t_v.push_back(std::thread(thread_func, n_points, i));
+    }
 
-    std::minstd_rand gen(std::random_device{}());
-    std::uniform_real_distribution<double> dist(0, 1);
-
-
-    Graph g = step0Gen::genGraph(n_points);
-    UnionFind u(n_points);
-
-    std::vector<Edge> results;
-
-    sort(g.edges.begin(), g.edges.end(), comp_edge);
-
-    double sum = 0;
-    double max_weight = 0;
-
-    size_t found = 0;
-
-    //Kruskal's
-    for(int i = 0; i < g.edges.size() && found != n_points-1; i++) {
-        int x = u.find(g.edges[i].src);
-        int y = u.find(g.edges[i].dest);
-
-        if (x != y) {
-            // results.push_back(g.edges[i]);
-            sum += g.edges[i].weight;
-            max_weight = g.edges[i].weight;
-            u.setunion(x,y);
-            found++;
-        }
-
-        if (i == g.edges.size() -1) {
-            printf("error: not enough terms\n");
-        }
-
+    for(int i = 0; i < n_trials; i++) {
+        t_v[i].join();
     }
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop-start);
 
-    printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
+    double sum = 0.;
+    double max = 0.;
+    for (int i = 0; i < n_trials; i++) {
+        sum += res[i].first;
+        if (res[i].second > max) {
+            max = res[i].second;
+        }
+    }
+
+    sum /= n_trials;
+
+    printf("Average weight: %.17g\n", sum);
+
+    printf("Max: %.17g\n", max);
+
     printf("Time elapsed: %i\n", duration.count());
     
 }
