@@ -81,7 +81,7 @@ int comp_edge(Edge a, Edge b) {
 
 class GraphGen {
     public:
-        static Graph genGraph(size_t n);
+        Graph genGraph(size_t n, size_t seed);
         static double k_max(size_t n);
 };
 
@@ -89,8 +89,8 @@ class GraphGen {
 // NOTE: WHICH GEN TO USE? mt19937_64 is good and high-precision but minstd_rand is twice as fast
 class step0Gen : public GraphGen {
     public:
-        static Graph genGraph(size_t n, size_t seed) {
-            std::mt19937_64 gen(seed);
+        Graph genGraph(size_t n, size_t seed) {
+            std::minstd_rand gen(seed);
             std::uniform_real_distribution<double> dist(0, 1);
 
             double k = k_max(n);
@@ -115,14 +115,70 @@ class step0Gen : public GraphGen {
         };
 };
 
+class step1Gen : public GraphGen {
+    public:
+        double* xs;
+        double* ys;
+        Graph genGraph(size_t n, size_t seed) {
+
+            std::minstd_rand gen(seed);
+            std::uniform_real_distribution<double> dist(0, 1);
+
+            xs = (double*) malloc(n*sizeof(double));
+            ys = (double*) malloc(n*sizeof(double));
+
+            double k = k_max(n);
+
+            Graph g;
+
+            for (size_t i = 0; i < n; i++) {
+                xs[i] = dist(gen);
+                ys[i] = dist(gen);
+            }
+            for (int i = 0; i < n; i++) {
+                for (int j = i+1; j < n; j++) {
+                    double ds = (xs[i]-xs[j])*(xs[i]-xs[j]) + (ys[i]-ys[j])*(ys[i]-ys[j]);
+                    if (ds < k) {
+                        g.add_edge(i, j, sqrt(ds));
+                    }
+                }
+            }
+
+            free(xs);
+            free(ys);
+
+            return g;
+        }
+
+        static double k_max(size_t n) {
+            if(n < 4192) return 10;
+            double ex = - 0.7 * log2((double)n);
+            return pow(2.0, ex);
+        }
+};
+
+
 std::vector<std::pair<double, double>> res;
 std::mutex mtx;
 
-void thread_func(size_t n_points, size_t t_num) {
-    Graph g = step0Gen::genGraph(n_points, t_num);
+void thread_func(size_t n_points, size_t t_num, size_t dim) {
+
+    Graph g;
+
+    if (dim == 0) {
+        step0Gen gen;
+        g = gen.genGraph(n_points, t_num);
+    } else if (dim == 2) {
+        step1Gen gen;
+        g = gen.genGraph(n_points, t_num);
+    } else {
+        printf("Invalid number of dimensions\n");
+        exit(1);
+    }
+
     UnionFind u(n_points);
-    
-    sort(g.edges.begin(), g.edges.end(), comp_edge);
+
+    std::sort(g.edges.begin(), g.edges.end(), comp_edge);
 
     double sum = 0;
     double max_weight = 0;
@@ -139,12 +195,18 @@ void thread_func(size_t n_points, size_t t_num) {
             max_weight = g.edges[i].weight;
             u.setunion(x,y);
             found++;
+            // printf("%i,%i,%i,%f\n", found, x, y, g.edges[i].weight);
         }
 
-        if (i == g.edges.size() -1) {
-            printf("error: not enough terms\n");
-        }
 
+        // if (i == g.edges.size() -1) {
+        //     printf("error: not enough terms\n");
+        // }
+
+    }
+
+    if (found != n_points-1) {
+        printf("error: not enough terms\n");
     }
 
     printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
@@ -173,7 +235,7 @@ int main(int argc, char **argv) {
     std::vector<std::thread> t_v;
 
     for(int i = 0; i < n_trials; i++) {
-        t_v.push_back(std::thread(thread_func, n_points, i));
+        t_v.push_back(std::thread(thread_func, n_points, i, dim));
     }
 
     for(int i = 0; i < n_trials; i++) {
@@ -182,6 +244,8 @@ int main(int argc, char **argv) {
 
     auto stop = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop-start);
+
+
 
     double sum = 0.;
     double max = 0.;
