@@ -346,9 +346,17 @@ int main(int argc, char **argv) {
     std::vector<std::thread> t_v;
 
     for(int i = 0; i < n_trials; i++) {
+
+        size_t seed;
+        if (n_trials > 1) {
+            seed = i;
+        } else {
+            std::random_device rd;
+            seed = rd();
+        }
+
         // Seed with thread number; otherwise seed randomly from system
-        size_t seed = n_trials > 1 ? i : std::random_device({})();
-        t_v.push_back(std::thread(thread_func, n_points, i, dim));
+        t_v.push_back(std::thread(thread_func, n_points, seed, dim));
     }
 
     for(int i = 0; i < n_trials; i++) {
