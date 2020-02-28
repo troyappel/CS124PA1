@@ -90,10 +90,10 @@ class GraphGen {
 class step0Gen : public GraphGen {
     public:
         Graph genGraph(size_t n, size_t seed) {
-            std::minstd_rand gen(seed);
+            std::mt19937_64 gen(0);
             std::uniform_real_distribution<double> dist(0, 1);
 
-            double k = k_max(n);
+            const double k = k_max(n);
 
             Graph g;
 
@@ -101,8 +101,8 @@ class step0Gen : public GraphGen {
                 for (int j = i+1; j < n; j++) {
                     double d =  dist(gen);
                     if (d < k) {
-                        g.add_edge(i, j, dist(gen));
-                    }
+                        g.add_edge(i, j, d);
+                    } 
                 }
             }
 
@@ -110,7 +110,7 @@ class step0Gen : public GraphGen {
 
         }
         static double k_max(size_t n) {
-            if (n < 4192) return 1.0;
+            if (n < 4096) return 1.0;
             double ex = - 0.7 * log2((double)n);
             return pow(2.0, ex);
         };
@@ -304,9 +304,9 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
         if (x != y) {
             sum += g.edges[i].weight;
             max_weight = g.edges[i].weight;
+            // printf("%.17g\n", g.edges[i].weight);
             u.setunion(x,y);
             found++;
-            // printf("%i,%i,%i,%f\n", found, x, y, g.edges[i].weight);
         }
 
 
@@ -320,11 +320,9 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
         printf("error: not enough terms\n");
     }
 
-    // printf("Sum: %.17g, Max: %.17g\n", sum, g.edges[0].weight);
-
     {
         std::lock_guard<std::mutex> guard(mtx); 
-        res.push_back(std::make_pair(sum, g.edges[0].weight));
+        res.push_back(std::make_pair(sum, max_weight));
     }
 }
 
@@ -381,7 +379,7 @@ int main(int argc, char **argv) {
 
     // printf("Average weight: %.17g\n", sum);
 
-    // printf("Max: %.17g\n", max);
+    printf("Max: %.17g\n", max);
 
     // printf("Time elapsed: %i\n", duration.count());
 
