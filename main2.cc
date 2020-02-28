@@ -90,7 +90,7 @@ class GraphGen {
 class step0Gen : public GraphGen {
     public:
         Graph genGraph(size_t n, size_t seed) {
-            std::mt19937_64 gen(0);
+            std::minstd_rand gen(0);
             std::uniform_real_distribution<double> dist(0, 1);
 
             const double k = k_max(n);
