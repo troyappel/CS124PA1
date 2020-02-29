@@ -1,12 +1,10 @@
 #include <iostream>
-#include <unordered_map>
 #include <assert.h>
 #include <vector>
 #include <algorithm>
 #include <random>
 #include <cstdlib>
 #include <math.h>
-#include <chrono>
 #include <mutex>
 #include <thread>
 
@@ -32,6 +30,7 @@ struct Graph {
     }
 };
 
+// UnionFind object, where the keys are just numbers 0... n-1.
 struct UnionFind {
     Node* arr;
 
@@ -79,12 +78,15 @@ int comp_edge(Edge a, Edge b) {
     return a.weight < b.weight;
 }
 
+// Graphs here consist of a list of edges. Since Kruskal's iterates through edges, this is the best way to store it!
 class GraphGen {
     public:
         Graph genGraph(size_t n, size_t seed);
         static double k_max(size_t n);
 };
 
+//We chose to just copy-paste the generators for the most part, as we found using variable-sized arrays too 
+//complicated and potentially slower.
 
 // NOTE: WHICH GEN TO USE? mt19937_64 is good and high-precision but minstd_rand is twice as fast
 class step0Gen : public GraphGen {
@@ -152,7 +154,7 @@ class step1Gen : public GraphGen {
         }
 
         static double k_max(size_t n) {
-            if(n < 4192) return 10;
+            if(n < 4096) return 10;
             double ex = - 0.7 * log2((double)n);
             return pow(2.0, ex);
         }
@@ -201,7 +203,7 @@ class step2Gen : public GraphGen {
 
         static double k_max(size_t n) {
             // return 10;
-            if(n < 4192) return 10;
+            if(n < 4096) return 10;
             double ex = - 0.5 * log2((double)n);
             return pow(2.0, ex);
         }
@@ -255,7 +257,7 @@ class step3Gen : public GraphGen {
 
         static double k_max(size_t n) {
             // return 10;
-            if(n < 4192) return 10;
+            if(n < 4096) return 10;
             double ex = - 0.3 * log2((double)n);
             return pow(2.0, ex);
         }
@@ -304,18 +306,13 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
         if (x != y) {
             sum += g.edges[i].weight;
             max_weight = g.edges[i].weight;
-            // printf("%.17g\n", g.edges[i].weight);
             u.setunion(x,y);
             found++;
         }
 
-
-        // if (i == g.edges.size() -1) {
-        //     printf("error: not enough terms\n");
-        // }
-
     }
 
+    // less than n-1 edges were found; graph is not connected!
     if (found != n_points-1) {
         printf("error: not enough terms\n");
     }
@@ -328,8 +325,6 @@ void thread_func(size_t n_points, size_t t_num, size_t dim) {
 
 
 int main(int argc, char **argv) {
-
-    auto start = std::chrono::high_resolution_clock::now();
 
     assert(argc == 5);
 
@@ -361,27 +356,13 @@ int main(int argc, char **argv) {
         t_v[i].join();
     }
 
-    auto stop = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop-start);
-
-
-
+    // Average across the trials
     double sum = 0.;
-    double max = 0.;
     for (int i = 0; i < n_trials; i++) {
         sum += res[i].first;
-        if (res[i].second > max) {
-            max = res[i].second;
-        }
     }
 
     sum /= n_trials;
-
-    // printf("Average weight: %.17g\n", sum);
-
-    printf("Max: %.17g\n", max);
-
-    // printf("Time elapsed: %i\n", duration.count());
 
     printf("%.17g %lu %lu %lu\n", sum, n_points, n_trials, dim);
     
