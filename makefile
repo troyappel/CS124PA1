@@ -1,7 +1,7 @@
 run: clean randmst runtests
 
-randmst: main2.cc
-	g++ -o randmst main2.cc -O3 -pthread
+randmst: main_randmst.cc
+	g++ -o randmst main_randmst.cc -O3 -pthread
 
 clean:
 	rm -f randmst
